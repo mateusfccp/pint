@@ -71,9 +71,7 @@ extension InterfaceElementExtension on InterfaceElement {
 
   /// Whether this class is a leaf node in the AST tree.
   bool get isLeaf {
-    final classesInLibrary = library.units.expand((unit) => unit.classes);
-
-    for (final interface in classesInLibrary) {
+    for (final interface in library.classes) {
       if (interface.allSupertypes.any((type) => type.element == this)) {
         return false;
       }
@@ -93,16 +91,14 @@ extension InterfaceElementExtension on InterfaceElement {
   bool get isVisitable => isNode;
 
   ElementAnnotation? get nodeRootAnnotation {
-    return metadata.firstWhereOrNull(
-      (element) => element.element?.enclosingElement3?.name == 'TreeRoot',
+    return metadata.annotations.firstWhereOrNull(
+      (element) => element.element?.name == 'TreeRoot',
     );
   }
 
   List<InterfaceElement> get nodes {
-    final classesInLibrary = library.units.expand((unit) => unit.classes);
-
     return [
-      for (final interface in classesInLibrary)
+      for (final interface in library.classes)
         if (interface.isNode && interface.supertype?.element == this) interface,
     ];
   }

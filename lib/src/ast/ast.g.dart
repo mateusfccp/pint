@@ -93,106 +93,6 @@ base mixin _Expression {
   String toString() => 'Expression';
 }
 
-base mixin _TypeIdentifier {
-  void visitChildren<R>(AstNodeVisitor<R> visitor) {}
-  @override
-  String toString() => 'TypeIdentifier';
-}
-
-base mixin _TopTypeIdentifier {
-  Token get _verum => (this as TopTypeIdentifier).verum;
-  int get _offset => (this as TopTypeIdentifier).offset;
-  int get _end => (this as TopTypeIdentifier).end;
-  R? accept<R>(AstNodeVisitor<R> visitor) =>
-      visitor.visitTopTypeIdentifier((this as TopTypeIdentifier));
-  void visitChildren<R>(AstNodeVisitor<R> visitor) {}
-  @override
-  String toString() =>
-      'TopTypeIdentifier(verum: $_verum, offset: $_offset, end: $_end)';
-}
-
-base mixin _BottomTypeIdentifier {
-  Token get _falsum => (this as BottomTypeIdentifier).falsum;
-  int get _offset => (this as BottomTypeIdentifier).offset;
-  int get _end => (this as BottomTypeIdentifier).end;
-  R? accept<R>(AstNodeVisitor<R> visitor) =>
-      visitor.visitBottomTypeIdentifier((this as BottomTypeIdentifier));
-  void visitChildren<R>(AstNodeVisitor<R> visitor) {}
-  @override
-  String toString() =>
-      'BottomTypeIdentifier(falsum: $_falsum, offset: $_offset, end: $_end)';
-}
-
-base mixin _ListTypeIdentifier {
-  Token get _leftBracket => (this as ListTypeIdentifier).leftBracket;
-  TypeIdentifier get _identifier => (this as ListTypeIdentifier).identifier;
-  Token get _rightBracket => (this as ListTypeIdentifier).rightBracket;
-  int get _offset => (this as ListTypeIdentifier).offset;
-  int get _end => (this as ListTypeIdentifier).end;
-  R? accept<R>(AstNodeVisitor<R> visitor) =>
-      visitor.visitListTypeIdentifier((this as ListTypeIdentifier));
-  void visitChildren<R>(AstNodeVisitor<R> visitor) {
-    _identifier.accept(visitor);
-  }
-
-  @override
-  String toString() =>
-      'ListTypeIdentifier(leftBracket: $_leftBracket, identifier: $_identifier, rightBracket: $_rightBracket, offset: $_offset, end: $_end)';
-}
-
-base mixin _SetTypeIdentifier {
-  Token get _leftBrace => (this as SetTypeIdentifier).leftBrace;
-  TypeIdentifier get _identifier => (this as SetTypeIdentifier).identifier;
-  Token get _rightBrace => (this as SetTypeIdentifier).rightBrace;
-  int get _offset => (this as SetTypeIdentifier).offset;
-  int get _end => (this as SetTypeIdentifier).end;
-  R? accept<R>(AstNodeVisitor<R> visitor) =>
-      visitor.visitSetTypeIdentifier((this as SetTypeIdentifier));
-  void visitChildren<R>(AstNodeVisitor<R> visitor) {
-    _identifier.accept(visitor);
-  }
-
-  @override
-  String toString() =>
-      'SetTypeIdentifier(leftBrace: $_leftBrace, identifier: $_identifier, rightBrace: $_rightBrace, offset: $_offset, end: $_end)';
-}
-
-base mixin _MapTypeIdentifier {
-  Token get _leftBrace => (this as MapTypeIdentifier).leftBrace;
-  TypeIdentifier get _key => (this as MapTypeIdentifier).key;
-  Token get _colon => (this as MapTypeIdentifier).colon;
-  TypeIdentifier get _value => (this as MapTypeIdentifier).value;
-  Token get _rightBrace => (this as MapTypeIdentifier).rightBrace;
-  int get _offset => (this as MapTypeIdentifier).offset;
-  int get _end => (this as MapTypeIdentifier).end;
-  R? accept<R>(AstNodeVisitor<R> visitor) =>
-      visitor.visitMapTypeIdentifier((this as MapTypeIdentifier));
-  void visitChildren<R>(AstNodeVisitor<R> visitor) {
-    _key.accept(visitor);
-    _value.accept(visitor);
-  }
-
-  @override
-  String toString() =>
-      'MapTypeIdentifier(leftBrace: $_leftBrace, key: $_key, colon: $_colon, value: $_value, rightBrace: $_rightBrace, offset: $_offset, end: $_end)';
-}
-
-base mixin _OptionTypeIdentifier {
-  TypeIdentifier get _identifier => (this as OptionTypeIdentifier).identifier;
-  Token get _eroteme => (this as OptionTypeIdentifier).eroteme;
-  int get _offset => (this as OptionTypeIdentifier).offset;
-  int get _end => (this as OptionTypeIdentifier).end;
-  R? accept<R>(AstNodeVisitor<R> visitor) =>
-      visitor.visitOptionTypeIdentifier((this as OptionTypeIdentifier));
-  void visitChildren<R>(AstNodeVisitor<R> visitor) {
-    _identifier.accept(visitor);
-  }
-
-  @override
-  String toString() =>
-      'OptionTypeIdentifier(identifier: $_identifier, eroteme: $_eroteme, offset: $_offset, end: $_end)';
-}
-
 base mixin _IdentifierExpression {
   Token get _identifier => (this as IdentifierExpression).identifier;
   int get _offset => (this as IdentifierExpression).offset;
@@ -328,7 +228,7 @@ base mixin _TypeDefinition {
   Token get _keyword => (this as TypeDefinition).keyword;
   Token get _name => (this as TypeDefinition).name;
   Token? get _leftParenthesis => (this as TypeDefinition).leftParenthesis;
-  SyntacticEntityList<IdentifierExpression>? get _parameters =>
+  SyntacticEntityList<Expression>? get _parameters =>
       (this as TypeDefinition).parameters;
   Token? get _rightParenthesis => (this as TypeDefinition).rightParenthesis;
   Token get _equals => (this as TypeDefinition).equals;

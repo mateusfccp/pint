@@ -137,19 +137,6 @@ final class StructLiteralElement extends LiteralElement
   late final Object? constantValue;
 }
 
-final class TypeLiteralElement extends LiteralElement with _TypeLiteralElement {
-  TypeLiteralElement({required Type referenceType})
-    : _referenceType = referenceType;
-
-  final Type _referenceType;
-
-  @override
-  Type get type => TypeType(_referenceType);
-
-  @override
-  Object? get constantValue => _referenceType;
-}
-
 final class TypeVariantElement extends Element with _TypeVariantElement {
   TypeVariantElement({required this.name});
 

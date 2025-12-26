@@ -152,18 +152,6 @@ base mixin _StructLiteralElement {
       'StructLiteralElement(type: $_type, members: $_members, constantValue: $_constantValue)';
 }
 
-base mixin _TypeLiteralElement {
-  Type get __referenceType => (this as TypeLiteralElement)._referenceType;
-  Type get _type => (this as TypeLiteralElement).type;
-  Object? get _constantValue => (this as TypeLiteralElement).constantValue;
-  R? accept<R>(ElementVisitor<R> visitor) =>
-      visitor.visitTypeLiteralElement((this as TypeLiteralElement));
-  void visitChildren<R>(ElementVisitor<R> visitor) {}
-  @override
-  String toString() =>
-      'TypeLiteralElement(_referenceType: $__referenceType, type: $_type, constantValue: $_constantValue)';
-}
-
 base mixin _TypeVariantElement {
   String get _name => (this as TypeVariantElement).name;
   List<ParameterElement> get _parameters =>

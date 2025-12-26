@@ -27,7 +27,7 @@ let name = "pint°"
 let isTheBestLanguage = true
 
 type Complex(T) = Complex(
-  [⊤] listOfAny,
+  [Unknown] listOfUnknownElements,
   [T] listOfT,
   {T} set,
   {T: T} map,
@@ -38,7 +38,7 @@ type Complex(T) = Complex(
 )
 
 let main _ =
-  print "Hello, world!"  
+  print "Hello, world!"
 
 ```
 

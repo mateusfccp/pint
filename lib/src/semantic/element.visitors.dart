@@ -15,7 +15,6 @@ abstract interface class ElementVisitor<R> {
   R? visitIdentifierElement(IdentifierElement node);
   R? visitSingletonLiteralElement(SingletonLiteralElement node);
   R? visitStructLiteralElement(StructLiteralElement node);
-  R? visitTypeLiteralElement(TypeLiteralElement node);
   R? visitTypeVariantElement(TypeVariantElement node);
   R? visitImportElement(ImportElement node);
   R? visitLetFunctionDeclaration(LetFunctionDeclaration node);
@@ -46,9 +45,6 @@ abstract base class SimpleElementVisitor<R> implements ElementVisitor<R> {
 
   @override
   R? visitStructLiteralElement(StructLiteralElement node) => null;
-
-  @override
-  R? visitTypeLiteralElement(TypeLiteralElement node) => null;
 
   @override
   R? visitTypeVariantElement(TypeVariantElement node) => null;
@@ -110,10 +106,6 @@ abstract base class GeneralizingElementVisitor<R> implements ElementVisitor<R> {
 
   @override
   R? visitStructLiteralElement(StructLiteralElement node) =>
-      visitLiteralElement(node);
-
-  @override
-  R? visitTypeLiteralElement(TypeLiteralElement node) =>
       visitLiteralElement(node);
 
   @override

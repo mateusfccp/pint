@@ -2,8 +2,8 @@ import 'package:pinto/semantic.dart';
 import 'package:test/test.dart';
 
 void main() {
-  const top = TopType();
-  const bottom = BottomType();
+  const top = UnknownType();
+  const bottom = NeverType();
   const unit = StructType.unit;
   const type = TypeType.self();
   final singleton = StructType.singleton;
@@ -13,7 +13,7 @@ void main() {
   const string = StringType();
 
   test('The top type is only the subtype of itself', () {
-    final top = const TopType();
+    final top = const UnknownType();
     expect(top < top, isTrue);
     expect(top < singleton(top), isTrue);
     expect(top < bottom, isFalse);

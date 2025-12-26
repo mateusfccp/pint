@@ -12,12 +12,6 @@ abstract interface class AstNodeVisitor<R> {
   R? visitValuelessStructMember(ValuelessStructMember node);
   R? visitFullStructMember(FullStructMember node);
   R? visitTypeVariantNode(TypeVariantNode node);
-  R? visitTopTypeIdentifier(TopTypeIdentifier node);
-  R? visitBottomTypeIdentifier(BottomTypeIdentifier node);
-  R? visitListTypeIdentifier(ListTypeIdentifier node);
-  R? visitSetTypeIdentifier(SetTypeIdentifier node);
-  R? visitMapTypeIdentifier(MapTypeIdentifier node);
-  R? visitOptionTypeIdentifier(OptionTypeIdentifier node);
   R? visitIdentifierExpression(IdentifierExpression node);
   R? visitInvocationExpression(InvocationExpression node);
   R? visitBooleanLiteral(BooleanLiteral node);
@@ -43,24 +37,6 @@ abstract base class SimpleAstNodeVisitor<R> implements AstNodeVisitor<R> {
 
   @override
   R? visitTypeVariantNode(TypeVariantNode node) => null;
-
-  @override
-  R? visitTopTypeIdentifier(TopTypeIdentifier node) => null;
-
-  @override
-  R? visitBottomTypeIdentifier(BottomTypeIdentifier node) => null;
-
-  @override
-  R? visitListTypeIdentifier(ListTypeIdentifier node) => null;
-
-  @override
-  R? visitSetTypeIdentifier(SetTypeIdentifier node) => null;
-
-  @override
-  R? visitMapTypeIdentifier(MapTypeIdentifier node) => null;
-
-  @override
-  R? visitOptionTypeIdentifier(OptionTypeIdentifier node) => null;
 
   @override
   R? visitIdentifierExpression(IdentifierExpression node) => null;
@@ -122,39 +98,13 @@ abstract base class GeneralizingAstNodeVisitor<R> implements AstNodeVisitor<R> {
 
   R? visitExpression(Expression node) => visitAstNode(node);
 
-  R? visitTypeIdentifier(TypeIdentifier node) => visitExpression(node);
-
-  @override
-  R? visitTopTypeIdentifier(TopTypeIdentifier node) =>
-      visitTypeIdentifier(node);
-
-  @override
-  R? visitBottomTypeIdentifier(BottomTypeIdentifier node) =>
-      visitTypeIdentifier(node);
-
-  @override
-  R? visitListTypeIdentifier(ListTypeIdentifier node) =>
-      visitTypeIdentifier(node);
-
-  @override
-  R? visitSetTypeIdentifier(SetTypeIdentifier node) =>
-      visitTypeIdentifier(node);
-
-  @override
-  R? visitMapTypeIdentifier(MapTypeIdentifier node) =>
-      visitTypeIdentifier(node);
-
-  @override
-  R? visitOptionTypeIdentifier(OptionTypeIdentifier node) =>
-      visitTypeIdentifier(node);
-
   @override
   R? visitIdentifierExpression(IdentifierExpression node) =>
-      visitTypeIdentifier(node);
+      visitExpression(node);
 
   @override
   R? visitInvocationExpression(InvocationExpression node) =>
-      visitTypeIdentifier(node);
+      visitExpression(node);
 
   R? visitLiteral(Literal node) => visitExpression(node);
 

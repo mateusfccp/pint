@@ -1,23 +1,13 @@
-import 'package:pinto/lexer.dart';
 import 'package:pinto/error.dart';
+import 'package:pinto/lexer.dart'
+    as token
+    show DoubleLiteral, IntegerLiteral, StringLiteral, SymbolLiteral;
+import 'package:pinto/lexer.dart'
+    hide DoubleLiteral, IntegerLiteral, StringLiteral, SymbolLiteral;
 import 'package:pinto/syntactic_entity.dart';
 
 import 'ast.dart';
 import 'import.dart';
-
-const _expressionTokens = [
-  TokenType.doubleLiteral,
-  TokenType.falseKeyword,
-  TokenType.identifier,
-  TokenType.integerLiteral,
-  TokenType.leftParenthesis,
-  TokenType.leftBrace,
-  TokenType.leftBracket,
-  // TokenType.letKeyword,
-  TokenType.stringLiteral,
-  TokenType.symbolLiteral,
-  TokenType.trueKeyword,
-];
 
 /// A pint° parser.
 final class Parser {
@@ -72,7 +62,7 @@ final class Parser {
       } else {
         final error = ExpectedError(
           syntacticEntity: _peek,
-          expectation: ExpectationType.declaration(),
+          expectation: const DeclarationExpectation(),
         );
 
         _errorHandler?.emit(error);
@@ -129,15 +119,7 @@ final class Parser {
     return false;
   }
 
-  bool _matchExpressionToken() {
-    return _expressionTokens.any(_match);
-  }
-
   bool _check(TokenType type) => _isNotAtEnd && _peek.type == type;
-
-  bool _checkExpressionToken() {
-    return _expressionTokens.any(_check);
-  }
 
   Token _advance() {
     if (_isNotAtEnd) _current++;
@@ -177,7 +159,7 @@ final class Parser {
       tokenTypes,
       ExpectedError(
         syntacticEntity: _peek,
-        expectation: ExpectationType.oneOf(
+        expectation: OneOfExpectation(
           expectations: [
             for (final tokenType in tokenTypes)
               TokenExpectation(token: tokenType),
@@ -222,38 +204,26 @@ final class Parser {
   }
 
   Expression _expression() {
-    if (_matchExpressionToken()) {
-      switch (_previous.type) {
-        case TokenType.doubleLiteral:
-          return DoubleLiteral(_previous);
-        case TokenType.falseKeyword:
-          return BooleanLiteral(_previous);
-        case TokenType.identifier:
-          return _identifierOrInvocation();
-        case TokenType.integerLiteral:
-          return IntegerLiteral(_previous);
-        case TokenType.leftParenthesis:
-          return _structLiteral();
-        case TokenType.stringLiteral:
-          return StringLiteral(_previous);
-        case TokenType.symbolLiteral:
-          return _symbolLiteral();
-        case TokenType.trueKeyword:
-          return BooleanLiteral(_previous);
-        case TokenType.leftBrace:
-        case TokenType.leftBracket:
-        case TokenType.verum:
-        case TokenType.falsum:
-          _current--; // TODO(mateusfccp): We should not rewind the parser.
-          return _typeIdentifier();
-        default:
-          // TODO(mateusfccp): We may exhaustively check this case by using a sealed class for tokens instead of enums
-          throw StateError('This branch should be unreachable.');
+    if (_peek.type case final ExpressionTokenType tokenType) {
+      if (tokenType is! LeftBrace && tokenType is! LeftBracket) {
+        _advance();
       }
+
+      return switch (tokenType) {
+        token.DoubleLiteral() => DoubleLiteral(_previous),
+        FalseKeyword() => BooleanLiteral(_previous),
+        Identifier() => _identifierOrInvocation(),
+        token.IntegerLiteral() => IntegerLiteral(_previous),
+        LeftParenthesis() => _structLiteral(),
+        token.StringLiteral() => StringLiteral(_previous),
+        token.SymbolLiteral() => _symbolLiteral(),
+        TrueKeyword() => BooleanLiteral(_previous),
+        LeftBrace() || LeftBracket() => _typeIdentifier(),
+      };
     } else {
       throw ExpectedError(
         syntacticEntity: _previous,
-        expectation: ExpectationType.expression(),
+        expectation: const ExpressionExpectation(),
       );
     }
   }
@@ -265,7 +235,7 @@ final class Parser {
 
   Expression _identifierOrInvocation() {
     final identifier = _identifier();
-    if (_checkExpressionToken()) {
+    if (_peek.type is ExpressionTokenType) {
       return InvocationExpression(identifier, _expression());
     } else {
       return identifier;
@@ -293,7 +263,7 @@ final class Parser {
     if (_match(TokenType.symbolLiteral)) {
       final name = _symbolLiteral();
 
-      if (_checkExpressionToken()) {
+      if (_peek.type is ExpressionTokenType) {
         final expression = _expression();
 
         return FullStructMember(name, expression);
@@ -328,8 +298,8 @@ final class Parser {
       TokenType.equalitySign,
       ExpectedAfterError(
         syntacticEntity: _peek,
-        expectation: ExpectationType.token(token: TokenType.equalitySign),
-        after: ExpectationType.token(
+        expectation: const TokenExpectation(token: TokenType.equalitySign),
+        after: TokenExpectation(
           token: TokenType.identifier,
           description: parameter == null
               ? 'declaration name'
@@ -428,27 +398,27 @@ final class Parser {
     return TypeVariantNode(name, parameters);
   }
 
-  TypeIdentifier _typeIdentifier() {
-    if (_match(TokenType.verum)) {
-      return TopTypeIdentifier(_previous);
-    } else if (_match(TokenType.falsum)) {
-      return BottomTypeIdentifier(_previous);
-    } else if (_match(TokenType.leftBracket)) {
+  Expression _typeIdentifier() {
+    if (_match(TokenType.leftBracket)) {
       final leftBracket = _previous;
       final literal = _typeIdentifier();
 
-      final rightBracket = _consumeAfter(
+      _consumeAfter(
         type: TokenType.rightBracket,
         after: TokenType.identifier, // TODO(mateusfccp): Fix this
       );
 
-      return ListTypeIdentifier(leftBracket, literal, rightBracket);
+      return _createDesugaredType(
+        lexeme: 'List',
+        offset: leftBracket.offset,
+        argument: literal,
+      );
     } else if (_match(TokenType.leftBrace)) {
       final leftBrace = _previous;
       final literal = _typeIdentifier();
 
       final Token? colon;
-      final TypeIdentifier? valueLiteral;
+      final Expression? valueLiteral;
 
       if (_match(TokenType.colon)) {
         colon = _previous;
@@ -464,31 +434,59 @@ final class Parser {
       );
 
       if (colon == null || valueLiteral == null) {
-        return SetTypeIdentifier(leftBrace, literal, rightBrace);
+        return _createDesugaredType(
+          lexeme: 'Set',
+          offset: leftBrace.offset,
+          argument: literal,
+        );
       } else {
-        return MapTypeIdentifier(
-          leftBrace,
-          literal,
-          colon,
-          valueLiteral,
-          rightBrace,
+        return _createDesugaredType(
+          lexeme: 'Map',
+          offset: leftBrace.offset,
+          argument: StructLiteral(
+            Token(
+              type: TokenType.leftParenthesis,
+              offset: leftBrace.offset,
+              lexeme: '(',
+            ),
+            SyntacticEntityList([
+              NamelessStructMember(literal),
+              NamelessStructMember(valueLiteral),
+            ]),
+            Token(
+              type: TokenType.rightParenthesis,
+              offset: rightBrace.offset,
+              lexeme: ')',
+            ),
+          ),
         );
       }
     } else {
       final expression = _expression();
 
-      if (expression is! TypeIdentifier) {
-        throw ExpectedError(
-          syntacticEntity: expression,
-          expectation: ExpectationType.typeIdentifier(),
-        );
-      }
-
       if (_match(TokenType.eroteme)) {
-        return OptionTypeIdentifier(expression, _previous);
+        return _createDesugaredType(
+          lexeme: 'Option',
+          offset: _previous.offset,
+          argument: expression,
+        );
       } else {
         return expression;
       }
     }
   }
+}
+
+@pragma('vm:prefer-inline')
+Expression _createDesugaredType({
+  required String lexeme,
+  required int offset,
+  required Expression argument,
+}) {
+  return InvocationExpression(
+    IdentifierExpression(
+      Token(type: TokenType.identifier, offset: offset, lexeme: lexeme),
+    ),
+    argument,
+  );
 }

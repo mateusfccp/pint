@@ -13,4 +13,6 @@ let printMessage (:message String) = print (message)
 let improperMain () = printMessage (:message 10)
 //                                 ^^^^^^^^^^^^^ invalid_argument_type
 
-let main (:arguments [String]) = printMessage (:message "Hello, world!")
+let unknownParameter (:unknown Unknown) = print (unknown)
+
+let main (:arguments List(String)) = printMessage (:message "Hello, world!")

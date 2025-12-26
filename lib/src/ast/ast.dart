@@ -17,144 +17,6 @@ sealed class AstNode with _AstNode implements SyntacticEntity {
   void visitChildren<R>(AstNodeVisitor<R> visitor);
 }
 
-sealed class TypeIdentifier extends Expression with _TypeIdentifier {
-  const TypeIdentifier();
-}
-
-final class TopTypeIdentifier extends TypeIdentifier with _TopTypeIdentifier {
-  const TopTypeIdentifier(this.verum);
-
-  final Token verum;
-
-  @override
-  int get offset => verum.offset;
-
-  @override
-  int get end => verum.end;
-}
-
-final class BottomTypeIdentifier extends TypeIdentifier
-    with _BottomTypeIdentifier {
-  const BottomTypeIdentifier(this.falsum);
-
-  final Token falsum;
-
-  @override
-  int get offset => falsum.offset;
-
-  @override
-  int get end => falsum.end;
-}
-
-final class ListTypeIdentifier extends TypeIdentifier with _ListTypeIdentifier {
-  const ListTypeIdentifier(
-    this.leftBracket,
-    this.identifier,
-    this.rightBracket,
-  );
-
-  final Token leftBracket;
-
-  final TypeIdentifier identifier;
-
-  final Token rightBracket;
-
-  @override
-  int get offset => leftBracket.offset;
-
-  @override
-  int get end => rightBracket.end;
-}
-
-final class SetTypeIdentifier extends TypeIdentifier with _SetTypeIdentifier {
-  const SetTypeIdentifier(this.leftBrace, this.identifier, this.rightBrace);
-
-  final Token leftBrace;
-
-  final TypeIdentifier identifier;
-
-  final Token rightBrace;
-
-  @override
-  int get offset => leftBrace.offset;
-
-  @override
-  int get end => rightBrace.end;
-}
-
-final class MapTypeIdentifier extends TypeIdentifier with _MapTypeIdentifier {
-  const MapTypeIdentifier(
-    this.leftBrace,
-    this.key,
-    this.colon,
-    this.value,
-    this.rightBrace,
-  );
-
-  final Token leftBrace;
-
-  final TypeIdentifier key;
-
-  final Token colon;
-
-  final TypeIdentifier value;
-
-  final Token rightBrace;
-
-  @override
-  int get offset => leftBrace.offset;
-
-  @override
-  int get end => rightBrace.end;
-}
-
-// final class IdentifiedTypeIdentifier extends TypeIdentifier with _IdentifiedTypeIdentifier {
-//   /// A type identifier with arguments.
-//   const IdentifiedTypeIdentifier(
-//     this.identifier,
-//     Token this.leftParenthesis,
-//     SyntacticEntityList<TypeIdentifier> this.arguments,
-//     Token this.rightParenthesis,
-//   );
-
-//   /// A type identifier with no arguments.
-//   const IdentifiedTypeIdentifier.raw(this.identifier)
-//       : leftParenthesis = null,
-//         arguments = null,
-//         rightParenthesis = null;
-
-//   final Token identifier;
-
-//   final Token? leftParenthesis;
-
-//   final SyntacticEntityList<TypeIdentifier>? arguments;
-
-//   final Token? rightParenthesis;
-
-//   bool get raw => arguments == null;
-
-//   @override
-//   int get offset => identifier.offset;
-
-//   @override
-//   int get end => rightParenthesis?.end ?? arguments?.end ?? leftParenthesis?.end ?? identifier.end;
-// }
-
-final class OptionTypeIdentifier extends TypeIdentifier
-    with _OptionTypeIdentifier {
-  const OptionTypeIdentifier(this.identifier, this.eroteme);
-
-  final TypeIdentifier identifier;
-
-  final Token eroteme;
-
-  @override
-  int get offset => identifier.offset;
-
-  @override
-  int get end => eroteme.end;
-}
-
 sealed class Node extends AstNode with _Node {
   const Node();
 }
@@ -221,8 +83,7 @@ sealed class Expression extends AstNode with _Expression {
   const Expression();
 }
 
-final class IdentifierExpression extends TypeIdentifier
-    with _IdentifierExpression {
+final class IdentifierExpression extends Expression with _IdentifierExpression {
   const IdentifierExpression(this.identifier);
 
   final Token identifier;
@@ -234,8 +95,7 @@ final class IdentifierExpression extends TypeIdentifier
   int get end => identifier.end;
 }
 
-final class InvocationExpression extends TypeIdentifier
-    with _InvocationExpression {
+final class InvocationExpression extends Expression with _InvocationExpression {
   const InvocationExpression(this.identifier, this.argument);
 
   final IdentifierExpression identifier;

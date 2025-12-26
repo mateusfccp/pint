@@ -86,8 +86,6 @@ final class Lexer {
   void _scanToken() {
     final character = _advance();
     return switch (character) {
-      '⊤' => _addToken(TokenType.verum),
-      '⊥' => _addToken(TokenType.falsum),
       '@' => _identifier(true),
       '?' => _addToken(TokenType.eroteme),
       '(' => _addToken(TokenType.leftParenthesis),
@@ -98,7 +96,8 @@ final class Lexer {
       '}' => _addToken(TokenType.rightBrace),
       ',' => _addToken(TokenType.comma),
       '+' => _addToken(TokenType.plusSign),
-      '=' => _addToken(TokenType.equalitySign),
+      '-' => _minus(),
+      '=' => _equals(),
       ':' => _symbolLiteral(),
       '"' => _string(),
       '/' => _slash(),
@@ -109,15 +108,17 @@ final class Lexer {
     };
   }
 
-  void _slash() {
-    if (_match('/')) {
-      while (_peek != '\n' && !_isAtEnd) {
-        _advance();
-      }
-    } else if (_match('*')) {
-      _advanceUntilCommentEnd();
+  void _minus() {
+    if (_match('>')) {
+      _addToken(TokenType.arrow);
+    }
+  }
+
+  void _equals() {
+    if (_match('>')) {
+      _addToken(TokenType.doubleArrow);
     } else {
-      _addToken(TokenType.slash);
+      _addToken(TokenType.equalitySign);
     }
   }
 
@@ -146,6 +147,18 @@ final class Lexer {
       // Advance to the closing quotes (")
       _advance();
       _addToken(TokenType.stringLiteral);
+    }
+  }
+
+  void _slash() {
+    if (_match('/')) {
+      while (_peek != '\n' && !_isAtEnd) {
+        _advance();
+      }
+    } else if (_match('*')) {
+      _advanceUntilCommentEnd();
+    } else {
+      _addToken(TokenType.slash);
     }
   }
 

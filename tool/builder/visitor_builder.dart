@@ -34,7 +34,9 @@ final class VisitorGenerator extends GeneratorForAnnotation<TreeRoot> {
 
     if (classElement.isRoot) {
       final inputLibrary = await buildStep.inputLibrary;
-      final fileName = inputLibrary.source.shortName;
+
+      // TODO(mateusfccp): Handle libraries with multiple fragments.
+      final fileName = inputLibrary.firstFragment.source.shortName;
 
       return [
         "import '$fileName';",
@@ -59,12 +61,21 @@ Class _visitorFromElement(InterfaceElement element) {
 
     element.descend((child) {
       if (child is InterfaceElement && child.isLeaf && child.isVisitable) {
+        final name = child.name;
+
+        if (name == null) {
+          throw InvalidGenerationSourceError(
+            'The element has no name.',
+            element: child,
+          );
+        }
+
         final method = Method((builder) {
           builder.returns = refer('R?');
-          builder.name = 'visit${child.name}';
+          builder.name = 'visit$name';
           builder.requiredParameters.add(
             Parameter((builder) {
-              builder.type = refer(child.name);
+              builder.type = refer(name);
               builder.name = 'node';
             }),
           );
@@ -86,13 +97,22 @@ Class _simpleVisitorFromElement(InterfaceElement element) {
 
     element.descend((child) {
       if (child is InterfaceElement && child.isLeaf && child.isVisitable) {
+        final name = child.name;
+
+        if (name == null) {
+          throw InvalidGenerationSourceError(
+            'The element has no name.',
+            element: child,
+          );
+        }
+
         final method = Method((builder) {
           builder.annotations.add(refer('override'));
           builder.returns = refer('R?');
-          builder.name = 'visit${child.name}';
+          builder.name = 'visit$name';
           builder.requiredParameters.add(
             Parameter((builder) {
-              builder.type = refer(child.name);
+              builder.type = refer(name);
               builder.name = 'node';
             }),
           );
@@ -122,11 +142,20 @@ Class _generalizingVisitorFromElement(InterfaceElement interface) {
             builder.annotations.add(refer('override'));
           }
 
+          final name = child.name;
+
+          if (name == null) {
+            throw InvalidGenerationSourceError(
+              'The element has no name.',
+              element: child,
+            );
+          }
+
           builder.returns = refer('R?');
-          builder.name = 'visit${child.name}';
+          builder.name = 'visit$name';
           builder.requiredParameters.add(
             Parameter((builder) {
-              builder.type = refer(child.name);
+              builder.type = refer(name);
               builder.name = 'node';
             }),
           );

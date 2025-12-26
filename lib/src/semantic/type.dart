@@ -26,7 +26,7 @@ sealed class Type {
       types = cache;
     } else {
       types = {
-        const TopType(),
+        const UnknownType(),
         for (final supertype in declaredSupertypes) ...{
           supertype,
           ...supertype.properSupertypes,
@@ -55,7 +55,7 @@ sealed class Type {
     other = flattened(other);
 
     switch ((self, other)) {
-      case (BottomType(), _) || (_, TopType()):
+      case (NeverType(), _) || (_, UnknownType()):
         return true;
       case (StructType self, StructType other):
         if (self.members.length != other.members.length) {
@@ -102,24 +102,22 @@ final class BooleanType extends Type {
 
 /// A type that represents the bottom type.
 ///
-/// It is represented by the symbol `⊥`.
-///
 /// When compiled to Dart, the bottom type is represented by `Never`.
-final class BottomType extends Type {
+final class NeverType extends Type {
   /// Creates the bottom type.
-  const BottomType();
+  const NeverType();
 
   @override
   Null get element => null;
 
   @override
-  bool operator ==(Object other) => other is BottomType;
+  bool operator ==(Object other) => other is NeverType;
 
   @override
   int get hashCode => runtimeType.hashCode;
 
   @override
-  String toString() => '⊥';
+  String toString() => 'Never';
 }
 
 /// A type that represents a double value.
@@ -167,7 +165,7 @@ final class FunctionType extends Type {
   Null get element => null;
 
   @override
-  bool operator ==(Object other) => other is BottomType;
+  bool operator ==(Object other) => other is NeverType;
 
   @override
   int get hashCode => runtimeType.hashCode;
@@ -394,25 +392,27 @@ final class SymbolType extends Type {
   String toString() => 'Symbol';
 }
 
-/// A type that represents the top type.
+/// The `Unknown` type.
 ///
-/// It is represented by the symbol `⊤`.
+/// It is the top type in the type hierarchy, but it uses the "unknown" name to
+/// promote a higher degree of built-in type safety when dealing with the
+/// universal type.
 ///
 /// When compiled to Dart, the top type is represented by `Object?`.
-final class TopType extends Type {
-  const TopType();
+final class UnknownType extends Type {
+  const UnknownType();
 
   @override
   Null get element => null;
 
   @override
-  bool operator ==(Object other) => other is TopType;
+  bool operator ==(Object other) => other is UnknownType;
 
   @override
   int get hashCode => runtimeType.hashCode;
 
   @override
-  String toString() => '⊤';
+  String toString() => 'Top';
 }
 
 final class TypeParameterType extends Type {
@@ -466,7 +466,7 @@ final class TypeType extends Type {
   int get hashCode => runtimeType.hashCode;
 
   @override
-  String toString() => '★';
+  String toString() => 'Type${isSelf ? '' : ' of $_reference'}';
 }
 
 /// Maps a parameter type to the expected argument type.
@@ -479,13 +479,20 @@ final class TypeType extends Type {
 ///
 /// `printMessage` parameter has a type (:message ★), but whe calling it, we
 /// must pass a type (:message String).
-StructType parameterTypeToExpectedArgumentType(StructType parameterType) {
+StructType parameterTypeToExpectedArgumentType(Type parameterType) {
+  final normalizedParameterType = parameterType is StructType
+      ? parameterType
+      : StructType.singleton(parameterType);
+
   assert(
-    parameterType.members.values.every((element) => element is TypeType),
-    'All members of a parameter must be a type. Got ${parameterType.members.values} instead.',
+    normalizedParameterType.members.values.every(
+      (element) => element is TypeType,
+    ),
+    'All members of a parameter must be a type. Got ${normalizedParameterType.members.values} instead.',
   );
 
-  final castedMembers = parameterType.members.cast<String, TypeType>();
+  final castedMembers = normalizedParameterType.members
+      .cast<String, TypeType>();
 
   return StructType(
     members: {

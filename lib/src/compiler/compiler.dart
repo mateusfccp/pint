@@ -32,7 +32,11 @@ final class Compiler implements ElementVisitor<List<Spec>> {
 
   @override
   List<Expression> visitIdentifierElement(IdentifierElement node) {
-    return [refer(node.name)];
+    if (node.type case TypeType type) {
+      return [refer(_buildTypeName(type.reference))];
+    } else {
+      return [refer(node.name)];
+    }
   }
 
   @override
@@ -57,8 +61,6 @@ final class Compiler implements ElementVisitor<List<Spec>> {
         expression = identifier.call(invocation);
       case IdentifierElement():
         expression = identifier.call([refer(argument.name)]);
-      case TypeLiteralElement():
-        expression = argument.accept(this)?.single as Expression;
     }
 
     return [expression];
@@ -105,16 +107,10 @@ final class Compiler implements ElementVisitor<List<Spec>> {
         builder.optionalParameters.add(
           Parameter((builder) {
             builder.named = true;
-            final Type type;
 
-            if (member.value case TypeLiteralElement literal) {
-              type = literal.type;
-            } else if (member.value case IdentifierElement identifier) {
-              type = identifier.constantValue as Type;
-            } else {
-              // This shouldn't happen because the resolver should have already validated the type
-              throw 'Unreachable';
-            }
+            // This shouldn't break because the resolver should have already validated the type
+            final identifier = member.value as IdentifierElement;
+            final type = identifier.constantValue as Type;
 
             if (type case PolymorphicType(isOption: true)) {
               builder.required = false;
@@ -122,9 +118,9 @@ final class Compiler implements ElementVisitor<List<Spec>> {
               builder.required = true;
             }
 
-            final res = member.value.accept(this);
+            final typeCode = member.value.accept(this);
 
-            builder.type = res?.single as Reference;
+            builder.type = typeCode?.single as Reference;
             builder.name = member.name;
           }),
         );
@@ -254,11 +250,6 @@ final class Compiler implements ElementVisitor<List<Spec>> {
   }
 
   @override
-  List<TypeReference> visitTypeLiteralElement(TypeLiteralElement node) {
-    return [_typeReferenceFromType(node.type)];
-  }
-
-  @override
   List<Reference> visitTypeParameterElement(TypeParameterElement node) {
     return [_typeReferenceFromType(node.definedType)];
   }
@@ -291,7 +282,7 @@ final class Compiler implements ElementVisitor<List<Spec>> {
         final argument =
             typeParameters.contains(typeParameter.type) //
             ? typeParameter.type!
-            : const BottomType();
+            : const NeverType();
 
         final parameter = _typeReferenceFromType(argument);
         variantClass.addParameterToSupertype(parameter);
@@ -311,7 +302,7 @@ String _buildTypeName(
 }) {
   return switch (type) {
     BooleanType() => 'bool',
-    BottomType() => 'Never',
+    NeverType() => 'Never',
     DoubleType() => 'double',
     FunctionType() =>
       '${_buildTypeName(type.returnType, position: _ParameterPosition.contravariant)} Function(${_buildTypeName(type.parameterType)})',
@@ -325,7 +316,7 @@ String _buildTypeName(
     },
     StructType() => _buildStructTypeName(type),
     SymbolType() => 'Symbol',
-    TopType() => 'Object?',
+    UnknownType() => 'Object?',
     TypeType() => 'Type',
   };
 }
@@ -380,7 +371,7 @@ List<TypeParameterType> _typeParametersFromType(Type type) {
     PolymorphicType(:final arguments) => _typeParametersFromTypeList(arguments),
     TypeParameterType() => [type],
     BooleanType() || //
-    BottomType() ||
+    NeverType() ||
     DoubleType() ||
     FunctionType() ||
     IntegerType() ||
@@ -388,7 +379,7 @@ List<TypeParameterType> _typeParametersFromType(Type type) {
     StringType() ||
     StructType() ||
     SymbolType() ||
-    TopType() ||
+    UnknownType() ||
     TypeType() => const [],
   };
 }

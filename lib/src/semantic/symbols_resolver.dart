@@ -2,7 +2,7 @@
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/dart/element/element2.dart' as dart;
+import 'package:analyzer/dart/element/element.dart' as dart;
 import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart' as dart;
 import 'package:analyzer/file_system/file_system.dart';
@@ -50,7 +50,7 @@ final class SymbolsResolver {
     if (library is ResolvedLibraryResult) {
       return [
         for (var element
-            in library.element2.exportNamespace.definedNames2.values)
+            in library.element.exportNamespace.definedNames2.values)
           ?_dartElementToPintoElement(element),
       ];
     } else {
@@ -59,12 +59,12 @@ final class SymbolsResolver {
   }
 
   ImportedSymbolSyntheticElement? _dartElementToPintoElement(
-    dart.Element2 element,
+    dart.Element element,
   ) {
     final TypedElement syntheticElement;
 
     switch (element) {
-      case dart.FunctionTypedElement2():
+      case dart.FunctionTypedElement():
         final functionType = _dartFunctionTypeToPintoFunctionType(element.type);
 
         final body = SingletonLiteralElement()..constantValue = null;
@@ -78,13 +78,13 @@ final class SymbolsResolver {
               )
               ..type = functionType
               ..body = body;
-      case dart.InstanceElement2():
+      case dart.InstanceElement():
         final typeDefinition = TypeDefinitionElement(name: element.displayName);
 
         final variant = TypeVariantElement(name: element.displayName);
         variant.enclosingElement = typeDefinition;
 
-        for (final typeParameter in element.typeParameters2) {
+        for (final typeParameter in element.typeParameters) {
           final typeParameterElement = TypeParameterElement(
             name: typeParameter.displayName,
           );
@@ -108,17 +108,23 @@ final class SymbolsResolver {
         }
 
         syntheticElement = typeDefinition;
-      case dart.TopLevelVariableElement2():
+      case dart.TopLevelVariableElement():
         final body = SingletonLiteralElement()..constantValue = null;
 
         syntheticElement = LetVariableDeclaration(
           name: element.displayName,
           type: _dartTypeToPintoType(element.type),
         )..body = body;
-      case dart.TypeAliasElement2(aliasedElement2: final aliasedElement?)
+      case dart.TypeAliasElement()
           when element.aliasedType is! dart.FunctionType:
+        final name = element.name;
+
+        if (name == null) {
+          return null;
+        }
+
         final body = IdentifierElement(
-          name: aliasedElement.displayName,
+          name: name,
           type: _dartTypeToPintoType(element.aliasedType),
           constantValue: null,
         );
@@ -177,11 +183,11 @@ Type _dartTypeToPintoType(
       isDartCoreObject: true,
       nullabilitySuffix: NullabilitySuffix.question,
     ):
-      return const TopType();
+      return const UnknownType();
     case dart.NeverType():
-      return const BottomType();
+      return const NeverType();
     case dart.TypeParameterType():
-      return TypeParameterType(name: type.element3.displayName);
+      return TypeParameterType(name: type.element.displayName);
     case dart.FunctionType():
       return _dartFunctionTypeToPintoFunctionType(type);
     case dart.ParameterizedType():
@@ -199,11 +205,11 @@ Type _dartTypeToPintoType(
         return const StringType();
       } else if (type.isDartCoreType) {
         return const TypeType.self();
-      } else if (type.element3 case final dart.InterfaceElement2 element) {
+      } else if (type.element case final dart.InterfaceElement element) {
         return PolymorphicType(
           name: element.displayName,
           arguments: [
-            for (final typeParameter in element.typeParameters2) //
+            for (final typeParameter in element.typeParameters) //
               TypeParameterType(name: typeParameter.displayName),
           ],
           declaredSupertypes: [
@@ -230,13 +236,13 @@ FunctionType _dartFunctionTypeToPintoFunctionType(dart.FunctionType type) {
   final typeMembers = <String, TypeType>{};
 
   int index = 0;
-  for (final parameter in type.parameters) {
+  for (final parameter in type.formalParameters) {
     final type = _dartTypeToPintoType(parameter.type);
 
     if (parameter.isPositional) {
       typeMembers['\$${index++}'] = TypeType(type);
-    } else {
-      typeMembers[parameter.name] = TypeType(type);
+    } else if (parameter.name case final name? when parameter.isNamed) {
+      typeMembers[name] = TypeType(type);
     }
   }
 

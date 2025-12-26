@@ -1,3 +1,6 @@
+@Tags(['static'])
+library;
+
 import 'dart:collection';
 import 'dart:io';
 

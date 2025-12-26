@@ -1,13 +1,11 @@
 import 'dart:collection';
 
-import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:quiver/collection.dart';
 
 import 'ast/ast.dart';
 import 'lexer/token.dart';
 import 'syntactic_entity.dart';
 import 'semantic/type.dart';
-
-part 'error.freezed.dart';
 
 /// A Pinto error.
 sealed class PintoError {
@@ -64,105 +62,219 @@ sealed class ParseError implements PintoError {
   SyntacticEntity get syntacticEntity;
 }
 
-@freezed
-sealed class ExpectedError with _$ExpectedError implements ParseError {
-  const factory ExpectedError({
-    required SyntacticEntity syntacticEntity,
-    required ExpectationType expectation,
-  }) = _ExpectError;
 
-  const ExpectedError._();
+final class ExpectedError implements ParseError {
+  const ExpectedError({
+    required this.syntacticEntity,
+    required this.expectation,
+  });
+
+  @override
+  final SyntacticEntity syntacticEntity;
+
+  final ExpectationType expectation;
 
   @override
   String get code => 'expected_${expectation.code}';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ExpectedError &&
+        other.syntacticEntity == syntacticEntity &&
+        other.expectation == expectation;
+  }
+
+  @override
+  int get hashCode => Object.hash(syntacticEntity, expectation);
 }
 
-@freezed
-sealed class ExpectedAfterError
-    with _$ExpectedAfterError
-    implements ParseError {
-  const factory ExpectedAfterError({
-    required SyntacticEntity syntacticEntity,
-    required ExpectationType expectation,
-    required ExpectationType after,
-  }) = _ExpectAfterError;
+final class ExpectedAfterError implements ParseError {
+  const ExpectedAfterError({
+    required this.syntacticEntity,
+    required this.expectation,
+    required this.after,
+  });
 
-  const ExpectedAfterError._();
+  @override
+  final SyntacticEntity syntacticEntity;
+
+  final ExpectationType expectation;
+
+  final ExpectationType after;
 
   @override
   String get code => 'expected_${expectation.code}_after_${after.code}';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ExpectedAfterError &&
+        other.syntacticEntity == syntacticEntity &&
+        other.expectation == expectation &&
+        other.after == after;
+  }
+
+  @override
+  int get hashCode => Object.hash(syntacticEntity, expectation, after);
 }
 
-@freezed
-sealed class ExpectedBeforeError
-    with _$ExpectedBeforeError
-    implements ParseError {
-  const factory ExpectedBeforeError({
-    required SyntacticEntity syntacticEntity,
-    required ExpectationType expectation,
-    required ExpectationType before,
-  }) = _ExpectBeforeError;
+final class ExpectedBeforeError implements ParseError {
+  const ExpectedBeforeError({
+    required this.syntacticEntity,
+    required this.expectation,
+    required this.before,
+  });
 
-  const ExpectedBeforeError._();
+  @override
+  final SyntacticEntity syntacticEntity;
+
+  final ExpectationType expectation;
+
+  final ExpectationType before;
 
   @override
   String get code => 'expected_${expectation.code}_before_${before.code}';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ExpectedBeforeError &&
+        other.syntacticEntity == syntacticEntity &&
+        other.expectation == expectation &&
+        other.before == before;
+  }
+
+  @override
+  int get hashCode => Object.hash(syntacticEntity, expectation, before);
 }
 
-@freezed
-sealed class ExpectationType with _$ExpectationType {
-  const ExpectationType._();
+sealed class ExpectationType {
+  const ExpectationType();
 
-  const factory ExpectationType.declaration({Declaration? declaration}) =
-      DeclarationExpectation;
+  String get code;
+}
 
-  const factory ExpectationType.expression({Expression? expression}) =
-      ExpressionExpectation;
+final class DeclarationExpectation extends ExpectationType {
+  const DeclarationExpectation({this.declaration});
 
-  const factory ExpectationType.typeIdentifier() = TypeIdentifierExpectation;
+  final Declaration? declaration;
 
-  const factory ExpectationType.oneOf({
-    required List<ExpectationType> expectations,
-  }) = OneOfExpectation;
-
-  const factory ExpectationType.token({
-    required TokenType token,
-    String? description,
-  }) = TokenExpectation;
-
+  @override
   String get code {
-    return switch (this) {
-      DeclarationExpectation(declaration: ImportDeclaration()) => 'import',
-      DeclarationExpectation(declaration: LetDeclaration()) =>
-        'let_declaration',
-      DeclarationExpectation(declaration: TypeDefinition()) =>
-        'type_definition',
-      DeclarationExpectation() => 'declaration',
-      ExpressionExpectation() => 'expression',
-      OneOfExpectation(:final expectations) =>
-        expectations.map((expectation) => expectation.code).join('_or_'),
-      TokenExpectation(:final token) => token.code,
-      TypeIdentifierExpectation() => 'type_identifier',
+    return switch (declaration) {
+      ImportDeclaration() => 'import',
+      LetDeclaration() => 'let_declaration',
+      TypeDefinition() => 'type_definition',
+      null => 'declaration',
     };
   }
 
   @override
   String toString() {
-    return switch (this) {
-      DeclarationExpectation(declaration: ImportDeclaration()) => 'an import',
-      DeclarationExpectation(declaration: LetDeclaration()) =>
-        'a let declaration',
-      DeclarationExpectation(declaration: TypeDefinition()) =>
-        'a type definition',
-      DeclarationExpectation() => 'a declaration',
-      ExpressionExpectation() => 'an expression',
-      OneOfExpectation(:final expectations) =>
-        "${expectations.length > 1 ? 'one of ' : ''}${expectations.join(', ')}",
-      TokenExpectation(:final description, :final token) =>
-        description ?? "'$token'",
-      TypeIdentifierExpectation() => 'a type identifier',
+    return switch (declaration) {
+      ImportDeclaration() => 'an import',
+      LetDeclaration() => 'a let declaration',
+      TypeDefinition() => 'a type definition',
+      null => 'a declaration',
     };
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is DeclarationExpectation && other.declaration == declaration;
+  }
+
+  @override
+  int get hashCode => declaration.hashCode;
+}
+
+final class ExpressionExpectation extends ExpectationType {
+  const ExpressionExpectation({this.expression});
+
+  final Expression? expression;
+
+  @override
+  String get code => 'expression';
+
+  @override
+  String toString() => 'an expression';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ExpressionExpectation && other.expression == expression;
+  }
+
+  @override
+  int get hashCode => expression.hashCode;
+}
+
+final class TypeIdentifierExpectation extends ExpectationType {
+  const TypeIdentifierExpectation();
+
+  @override
+  String get code => 'type_identifier';
+
+  @override
+  String toString() => 'a type identifier';
+
+  @override
+  bool operator ==(Object other) => other is TypeIdentifierExpectation;
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+}
+
+final class OneOfExpectation extends ExpectationType {
+  const OneOfExpectation({required this.expectations});
+
+  final List<ExpectationType> expectations;
+
+  @override
+  String get code =>
+      expectations.map((expectation) => expectation.code).join('_or_');
+
+  @override
+  String toString() {
+    final prefix = expectations.length > 1 ? 'one of ' : '';
+    return '$prefix${expectations.join(', ')}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is OneOfExpectation &&
+        listsEqual(other.expectations, expectations);
+  }
+
+  @override
+  int get hashCode => Object.hashAll(expectations);
+}
+
+final class TokenExpectation extends ExpectationType {
+  const TokenExpectation({required this.token, this.description});
+
+  final TokenType token;
+  final String? description;
+
+  @override
+  String get code => token.code;
+
+  @override
+  String toString() => description ?? "'$token'";
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is TokenExpectation &&
+        other.token == token &&
+        other.description == description;
+  }
+
+  @override
+  int get hashCode => Object.hash(token, description);
 }
 
 final class MisplacedImport implements ParseError {

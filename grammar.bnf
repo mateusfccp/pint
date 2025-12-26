@@ -19,6 +19,8 @@
 <type_definition> ::= "type" <identifier> ( "(" <named_type_literal> ( "," <named_type_literal> )* ")" )? "=" <type_variation> ( "+" <type_variation> )*
 <type_variant> ::= <identifier> <struct_literal>?
 
+<trait_definition> ::= "trait" <identifier> = <struct_literal>
+
 <let_function_declaration> ::= "let" <identifier> <struct_literal> "=" <expression>
 <let_variable_declaration> ::= "let" <identifier> "=" <expression>
 
@@ -28,14 +30,14 @@
                  | <set_type_literal>
 		 | <map_type_literal>
 		 | <option_type_literal>
+		 | <function_type_literal>
 		 | <identifier>
 
-<top_type_literal> ::= "⊤"
-<bottom_type_literal> ::= "⊥"
 <list_type_literal> ::= "[" <type_literal> "]"
 <set_type_literal> ::= "{" <type_literal> "}"
 <map_type_literal> ::= "{" <type_literal> ":" <type_literal> "}"
 <option_type_literal> ::= <type_literal> "?"
+<function_type_literal> ::= <type_literal> "->" <type_literal>
 <invocation> ::= <identifier> <expression>
 
 <digit_separator> ::= "_"
@@ -52,8 +54,9 @@
 
 <bool_literal> ::= "true" | "false"
 <double_literal>  ::= <integer_literal> "." <integer_literal>
+<function_literal> ::= <struct_literal> "=>" <expression>
 <integer_literal> ::= <digit> (<digit_separator>* <digit>+)*
+<string_literal> ::= '"' + <string_character>* + '"'
 <struct_literal> ::= "(" <struct_literal_member> ("," <struct_literal_member>?)* ")"
 <struct_literal_member> ::= (<symbol_literal>? <expression>?)
-<string_literal> ::= '"' + <string_character>* + '"'
 <symbol_literal> ::= ":" <identifier>

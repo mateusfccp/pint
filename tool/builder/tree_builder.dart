@@ -49,16 +49,32 @@ Mixin _mixinForElement(InterfaceElement element) {
     builder.base = true;
     builder.name = element.privateName;
 
+    final elementName = element.name;
+
+    if (elementName == null) {
+      throw InvalidGenerationSourceError(
+        'The element has no name.',
+        element: element,
+      );
+    }
+
     // Generate fields without definitions in the main class.
     for (final field in element.fields) {
+      final fieldName = field.name;
+
+      if (fieldName == null) {
+        // Skip fields without a name
+        continue;
+      }
+
       builder.methods.add(
         Method((builder) {
           builder.returns = refer(field.type.toString());
           builder.type = MethodType.getter;
-          builder.name = '_${field.name}';
+          builder.name = '_$fieldName';
           builder.body = refer(
             'this',
-          ).asA(refer(element.name)).property(field.name).code;
+          ).asA(refer(element.displayName)).property(fieldName).code;
         }),
       );
     }
@@ -90,11 +106,20 @@ Method _acceptMethod(InterfaceElement element) {
       }),
     );
 
+    final name = element.name;
+
+    if (name == null) {
+      throw InvalidGenerationSourceError(
+        'The element has no name.',
+        element: element,
+      );
+    }
+
     builder.lambda = true;
     builder.body =
         refer('visitor') //
-            .property('visit${element.name}')
-            .call([refer('this').asA(refer(element.name))])
+            .property('visit$name')
+            .call([refer('this').asA(refer(name))])
             .code;
   });
 }
@@ -114,7 +139,7 @@ Method _visitChildrenMethod(InterfaceElement element) {
 
     builder.body = Block((builder) {
       for (final field in element.fields) {
-        final typeSystem = field.enclosingElement3.library!.typeSystem;
+        final typeSystem = field.enclosingElement.library.typeSystem;
         final isNullable = typeSystem.isNullable(field.type);
 
         if (field.isIterableOfVisitable) {
@@ -157,7 +182,16 @@ Method _toStringMethod(InterfaceElement element) {
     builder.returns = refer('String');
     builder.name = 'toString';
 
-    final string = StringBuffer(element.name);
+    final name = element.name;
+
+    if (name == null) {
+      throw InvalidGenerationSourceError(
+        'The element has no name.',
+        element: element,
+      );
+    }
+
+    final string = StringBuffer(name);
 
     if (element.fields.isNotEmpty) {
       string.write('(');

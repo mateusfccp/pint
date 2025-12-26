@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:pinto/ast.dart';
 import 'package:pinto/error.dart';
-import 'package:pinto/lexer.dart';
+import 'package:pinto/lexer.dart'
+    hide DoubleLiteral, IntegerLiteral, StringLiteral, SymbolLiteral;
 
 import 'element.dart';
 import 'environment.dart';
@@ -24,12 +25,27 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
 
   Environment _environment = Environment();
 
-  final _unresolvedParameters = <ParameterElement, TypeIdentifier>{};
+  final _unresolvedParameters = <ParameterElement, Expression>{};
 
   Future<ProgramElement> resolve() async {
     const core = DartSdkPackage(name: 'core');
     final programElement = ProgramElement();
     final syntheticTypeDefinitions = await _resolvePackage(core);
+
+    void defineTypeAlias(String name, Type definedType) {
+      final syntheticElement = ImportedSymbolSyntheticElement(
+        name: 'Unknown',
+        syntheticElement: TypeDefinitionElement(name: 'Unknown')
+          ..definedType = const UnknownType(),
+      );
+
+      syntheticTypeDefinitions.add(syntheticElement);
+
+      _environment.defineSymbol(name, syntheticElement);
+    }
+
+    defineTypeAlias('Unknown', const UnknownType());
+    defineTypeAlias('Never', const NeverType());
 
     final importsDeclarations = <ImportDeclaration>[];
     final importsElementsFuture = <Future<ImportElement>>[];
@@ -54,24 +70,20 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
     final importElements = await importsElementsFuture.wait;
     for (int i = 0; i < importElements.length; i++) {
       try {
-        try {
-          final element = importElements[i];
+        final element = importElements[i];
 
-          syntheticTypeDefinitions.addAll(
-            await _resolvePackage(element.package),
-          );
-
-          for (final definition in syntheticTypeDefinitions) {
-            programElement.declarations.add(definition);
-            definition.enclosingElement = programElement;
-          }
-        } on Exception {
-          final declaration = importsDeclarations[i];
-          throw ImportedPackageNotAvailableError(declaration.identifier);
-        }
+        syntheticTypeDefinitions.addAll(await _resolvePackage(element.package));
+      } on Exception {
+        final declaration = importsDeclarations[i];
+        throw ImportedPackageNotAvailableError(declaration.identifier);
       } on ResolveError catch (error) {
         _errorHandler?.emit(error);
       }
+    }
+
+    for (final definition in syntheticTypeDefinitions) {
+      programElement.declarations.add(definition);
+      definition.enclosingElement = programElement;
     }
 
     for (final declaration in program.whereNot(
@@ -97,7 +109,7 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
     for (final MapEntry(key: parameterElement, value: typeIdentifier)
         in _unresolvedParameters.entries) {
       try {
-        parameterElement.type = _resolveTypeIdentifier(typeIdentifier);
+        parameterElement.type = _resolveType(typeIdentifier);
       } on _SymbolNotResolved {
         // TODO(mateusfccp): do better
         final type = typeIdentifier as IdentifierExpression;
@@ -114,11 +126,6 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
       ..constantValue = node.literal.type == TokenType.trueKeyword
           ? true
           : false;
-  }
-
-  @override
-  Future<Element> visitBottomTypeIdentifier(BottomTypeIdentifier node) async {
-    return TypeLiteralElement(referenceType: const BottomType());
   }
 
   @override
@@ -183,34 +190,42 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
     identifier.enclosingElement = invocationElement;
     argument.enclosingElement = invocationElement;
 
-    if (identifier.type case final FunctionType functionType) {
-      // Check if the argument type matches the parameter type
-      final expectedType = parameterTypeToExpectedArgumentType(
-        functionType.parameterType,
-      );
+    switch (identifier.type) {
+      case final FunctionType functionType:
+        // Check if the argument type matches the parameter type
+        final expectedType = parameterTypeToExpectedArgumentType(
+          functionType.parameterType,
+        );
 
-      if (!argument.type!.subtypeOf(expectedType)) {
+        if (!argument.type!.subtypeOf(expectedType)) {
+          _errorHandler?.emit(
+            InvalidArgumentTypeError(
+              syntacticEntity: node.argument,
+              expectedType: expectedType,
+              argumentType: argument.type!,
+            ),
+          );
+        }
+
+        invocationElement.type = functionType.returnType;
+
+        return invocationElement;
+      case final TypeType type when type.reference is PolymorphicType:
+        // TODO(mateusfccp): For now, we will treat types with type parameters specially.
+        // In the future, type with type parameters will be regular constant functions that
+        // return a type.
+        invocationElement.type = type;
+
+        return invocationElement;
+      default:
         _errorHandler?.emit(
-          InvalidArgumentTypeError(
-            syntacticEntity: node.argument,
-            expectedType: expectedType,
-            argumentType: argument.type!,
+          NotAFunctionError(
+            syntacticEntity: node.identifier,
+            calledType: identifier.type!,
           ),
         );
-      }
 
-      invocationElement.type = functionType.returnType;
-
-      return invocationElement;
-    } else {
-      _errorHandler?.emit(
-        NotAFunctionError(
-          syntacticEntity: node.identifier,
-          calledType: identifier.type!,
-        ),
-      );
-
-      return invocationElement;
+        return invocationElement;
     }
   }
 
@@ -313,36 +328,11 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
   }
 
   @override
-  Future<Element> visitListTypeIdentifier(ListTypeIdentifier node) async {
-    return TypeLiteralElement(referenceType: _resolveTypeIdentifier(node));
-  }
-
-  @override
-  Future<Element> visitMapTypeIdentifier(MapTypeIdentifier node) async {
-    return TypeLiteralElement(referenceType: _resolveTypeIdentifier(node));
-  }
-
-  @override
   Future<StructMemberElement> visitNamelessStructMember(
     NamelessStructMember node,
   ) async {
     final value = await node.value.accept(this) as ExpressionElement;
     return StructMemberElement()..value = value;
-  }
-
-  @override
-  Future<Element> visitOptionTypeIdentifier(OptionTypeIdentifier node) async {
-    return TypeLiteralElement(
-      referenceType: PolymorphicType(
-        name: 'Option',
-        arguments: [_resolveTypeIdentifier(node.identifier)],
-      ),
-    );
-  }
-
-  @override
-  Future<Element> visitSetTypeIdentifier(SetTypeIdentifier node) async {
-    return TypeLiteralElement(referenceType: _resolveTypeIdentifier(node));
   }
 
   @override
@@ -411,11 +401,6 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
   Future<LiteralElement> visitSymbolLiteral(SymbolLiteral node) async {
     return SingletonLiteralElement(type: SymbolType())
       ..constantValue = node.literal.lexeme.substring(1);
-  }
-
-  @override
-  Future<Element> visitTopTypeIdentifier(TopTypeIdentifier node) async {
-    return TypeLiteralElement(referenceType: const TopType());
   }
 
   @override
@@ -493,7 +478,8 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
 
       final value = parameter.value;
 
-      if (value is! TypeIdentifier) {
+      // TODO(mateusfccp): Maybe reintroduce a common supertype for `IdentifierExpression` and `InvocationExpression`?
+      if (value is! IdentifierExpression && value is! InvocationExpression) {
         _errorHandler?.emit(
           InvalidTypeParameterError(syntacticEntity: parameter),
         );
@@ -503,7 +489,7 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
       late final ParameterElement element;
 
       try {
-        final type = _resolveTypeIdentifier(value);
+        final type = _resolveType(value);
         element = ParameterElement(name: node.name.lexeme)..type = type;
       } on _SymbolNotResolved {
         element = ParameterElement(name: node.name.lexeme);
@@ -537,33 +523,11 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
       ..value = value;
   }
 
-  Type _resolveTypeIdentifier(TypeIdentifier typeIdentifier) {
-    switch (typeIdentifier) {
-      case TopTypeIdentifier():
-        return const TopType();
-      case BottomTypeIdentifier():
-        return const BottomType();
-      case ListTypeIdentifier():
-        return PolymorphicType(
-          name: 'List',
-          arguments: [_resolveTypeIdentifier(typeIdentifier.identifier)],
-        );
-      case SetTypeIdentifier():
-        return PolymorphicType(
-          name: 'Set',
-          arguments: [_resolveTypeIdentifier(typeIdentifier.identifier)],
-        );
-      case MapTypeIdentifier():
-        return PolymorphicType(
-          name: 'Map',
-          arguments: [
-            _resolveTypeIdentifier(typeIdentifier.key),
-            _resolveTypeIdentifier(typeIdentifier.value),
-          ],
-        );
+  Type _resolveType(Expression expression) {
+    switch (expression) {
       case IdentifierExpression():
         final definition = _environment.getDefinition(
-          typeIdentifier.identifier.lexeme,
+          expression.identifier.lexeme,
         );
 
         if (definition == null) {
@@ -577,51 +541,39 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
         } else {
           // TODO(mateusfccp): Make a proper ResolveError and throw it
           throw StateError(
-            '${typeIdentifier.identifier.lexeme} has type ${definition.runtimeType}.',
+            '${expression.identifier.lexeme} has type ${definition.runtimeType}.',
           );
         }
 
       case InvocationExpression(:final identifier):
-        final baseType = _resolveTypeIdentifier(identifier);
+        final baseType = _resolveType(identifier);
 
         if (baseType is PolymorphicType) {
           final passedArguments = <Type>[];
 
-          if (typeIdentifier case InvocationExpression(:final argument)) {
+          if (expression case InvocationExpression(:final argument)) {
             if (argument is StructLiteral) {
               final members = argument.members;
               for (final member in members) {
                 if (member case NamelessStructMember(:final value)) {
-                  if (value is TypeIdentifier) {
-                    passedArguments.add(_resolveTypeIdentifier(value));
-                  } else {
-                    // TODO(mateusfccp): Make a proper ResolveError and throw it
-                    throw StateError(
-                      'Invalid argument type: ${argument.runtimeType}',
-                    );
-                  }
+                  passedArguments.add(_resolveType(value));
                 }
               }
-            } else if (argument is TypeIdentifier) {
-              passedArguments.add(_resolveTypeIdentifier(argument));
             } else {
-              // TODO(mateusfccp): Make a proper ResolveError and throw it
-              throw StateError(
-                'Invalid argument type: ${argument.runtimeType}',
-              );
+              passedArguments.add(_resolveType(argument));
             }
           }
 
           if (passedArguments.length != baseType.arguments.length) {
             throw WrongNumberOfArgumentsError(
-              syntacticEntity: typeIdentifier,
+              syntacticEntity: expression,
               argumentsCount: passedArguments.length,
               expectedArgumentsCount: baseType.arguments.length,
             );
           }
 
           return PolymorphicType(
-            name: typeIdentifier.identifier.identifier.lexeme,
+            name: expression.identifier.identifier.lexeme,
             arguments: passedArguments,
           );
         } else {
@@ -630,11 +582,11 @@ final class Resolver extends SimpleAstNodeVisitor<Future<Element>> {
             "Symbol $baseType is non-polymorphic, which shouldn't happen.",
           );
         }
-
-      case OptionTypeIdentifier():
-        final innerType = _resolveTypeIdentifier(typeIdentifier.identifier);
-
-        return PolymorphicType(name: 'Option', arguments: [innerType]);
+      case Expression():
+        // TODO(mateusfccp): Make a proper ResolveError and throw it
+        throw StateError(
+          'The expression $expression does not evaluate to a type.',
+        );
     }
   }
 
